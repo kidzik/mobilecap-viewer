@@ -1,5 +1,21 @@
 <template>
-  <div id="container"></div>
+  <div id="container">
+    <div style="padding: 3px;">
+      <div id="mocap" />
+    </div>
+    <div>
+      Use mouse to control the 3D view.
+    </div>
+    <div id="videos">
+      <video autoplay="true" muted id="video1" src="videos/left.mp4" controls="true" crossorigin="anonymous"/>
+      <video autoplay="true" muted id="video2" src="videos/rear.mp4" controls="true" crossorigin="anonymous"/>
+      <video autoplay="true" muted id="video3" src="videos/right.mp4" controls="true" crossorigin="anonymous"/>
+    </div>
+    <div>
+    <button style="margin-right: 10px;" disabled>Record a new trial</button>
+    <button onclick="window.open('melissa1.trc')">Download OpenSim tracking file (.trc)</button>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -7,6 +23,49 @@ import * as THREE from 'three'
 import * as data from '@/data'
 import * as THREE_OC from '@/orbitControls'
 //  console.log(frames)
+
+let openpose_bones = [
+//    [0,15],
+//    [0,16],
+//    [17,15],
+//    [18,16],
+    [0,1],
+    [1,2],
+    [1,5],
+    [1,8],
+    [8,9],
+    [8,12],
+    [9,10],
+    [10,11],
+    [12,13],
+    [11,22],
+    [13,14],
+    [14,19],
+    [5,6],
+    [6,7],
+    [2,3],
+    [3,4],
+//    [24,11],
+//    [22,23],
+//    [14,21],
+//    [20,19],
+]
+
+let lengths = openpose_bones.map((item) => {
+  let from = item[0]
+  let to = item[1]
+  let cframe = 100
+
+  var vfrom = new THREE.Vector3(data.frames[cframe][from*3],
+    data.frames[cframe][from*3 + 1],
+    data.frames[cframe][from*3 + 2]);
+
+  var vto = new THREE.Vector3(data.frames[cframe][to*3],
+    data.frames[cframe][to*3 + 1],
+    data.frames[cframe][to*3 + 2]);
+  return vto.distanceTo(vfrom)
+})
+console.log(lengths)
 
 export default {
   name: 'HelloWorld',
@@ -16,50 +75,118 @@ export default {
       scene: null,
       renderer: null,
       mesh: null,
+      processor: null,
     }
   },
   methods: {
     init: function() {
-        let container = document.getElementById('container');
+        let container = document.getElementById('mocap');
 
-        this.camera = new THREE.PerspectiveCamera(70, container.clientWidth/container.clientHeight, 0.01, 10);
-        this.camera.position.z = 1;
+        let ratio = container.clientWidth/container.clientHeight
+        this.camera = new THREE.PerspectiveCamera(50, ratio, 0.1, 100);
+        this.camera.position.z = -10;
+        this.camera.position.y = -10;
 
         this.scene = new THREE.Scene();
 
-        let geometry = new THREE.SphereGeometry( 0.005, 32, 32 );
         let material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
 
         this.pose_spheres = []
         this.pose_bones = []
         this.frame = 0
 
-        for (let i = 0; i < 25; i++) {
+/*        for (let i = 0; i < 1; i++) {
+          let geometry = new THREE.SphereGeometry( 0.2, 32, 32 );
           let sphere = new THREE.Mesh( geometry, material )
           this.pose_spheres.push(sphere);
           this.scene.add( sphere );
-        }
+        }*/
+
+
+        lengths.forEach((item) => {
+          let cone_geometry = new THREE.ConeGeometry( 0.05, item*2.5, 32 );
+          let cone = new THREE.Mesh( cone_geometry, material )
+          this.pose_bones.push(cone);
+          this.scene.add( cone );
+        })
+
+
 
         this.renderer = new THREE.WebGLRenderer({antialias: true});
         this.renderer.setSize(container.clientWidth, container.clientHeight);
         container.appendChild(this.renderer.domElement);
         this.controls = new THREE_OC.OrbitControls( this.camera, this.renderer.domElement );
 
+        this.video1 = document.getElementById("video1");
+        this.video2 = document.getElementById("video2");
+        this.video3 = document.getElementById("video3");
+
+        let self = this;
+        this.video1.addEventListener('ended', function () {
+          console.count('loop restart');
+          self.video1.currentTime = 0;
+          self.video2.currentTime = 0;
+          self.video3.currentTime = 0;
+          self.video1.play();
+          self.video2.play();
+          self.video3.play();
+        })
+
+        this.video1.playbackRate = 1
+        this.video2.playbackRate = 1
+        this.video3.playbackRate = 1
+
+    },
+    timerCallback: function() {
+      this.computeFrame();
+      let self = this;
+      setTimeout(function () {
+          self.timerCallback();
+        }, 0);
+    },
+
+    computeFrame: function() {
+    },
+
+    goToTime: function(time) {
+      if (this.video1 !== undefined && this.video2 !== undefined && this.video3 !== undefined){
+        this.video2.currentTime = time;
+        this.video3.currentTime = time;
+        this.video1.currentTime = time;
+      }
+      let x = time
+      time = x
     },
     animate: function() {
         requestAnimationFrame(this.animate);
+        let cframe = (Math.floor(self.video1.currentTime*120)) % data.frames.length
 
-        for (let i = 0; i < 25; i++) {
-          this.pose_spheres[i].position.set(
-            data.frames[this.frame][i*3]/10,
-            data.frames[this.frame][i*3+1]/10,
-            data.frames[this.frame][i*3+2]/10
+
+        for (let i = 0; i < this.pose_bones.length; i++) {
+          let from = openpose_bones[i][0]
+          let to = openpose_bones[i][1]
+
+          var vfrom = new THREE.Vector3(data.frames[cframe][from*3],
+            data.frames[cframe][from*3 + 1],
+            data.frames[cframe][from*3 + 2]);
+
+          var vto = new THREE.Vector3(data.frames[cframe][to*3],
+            data.frames[cframe][to*3 + 1],
+            data.frames[cframe][to*3 + 2]);
+
+          var axis = new THREE.Vector3(0, 1, 0);
+          this.pose_bones[i].quaternion.setFromUnitVectors(
+            axis,
+            vto.clone().add(vfrom.clone().multiplyScalar(-1)).normalize()
           );
+          let midpoint = vto.clone().add(vfrom.clone());
+          this.pose_bones[i].position.copy(midpoint);
+
+          if (openpose_bones[i][0] == 0){
+//            this.pose_spheres[0].position.copy(vfrom);
+          }
+
         }
-
-        this.frame = (this.frame + 1) % 400
-//        this.controls.update();
-
         this.renderer.render(this.scene, this.camera);
     }
   },
@@ -72,8 +199,23 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-  #container {
+  #mocap {
     height: 800px;
-    width: 100%;
+    border: 1px solid #333333;
+    width: 620px;
+    margin: 0 auto;
+  }
+  #videos {
+  }
+  #videos video {
+    width: 200px;
+  }
+  #cameras canvas {
+    padding: 5px;
+    padding-top: 10px;
+  }
+  #videos video {
+    padding: 5px;
+    padding-top: 10px;
   }
 </style>

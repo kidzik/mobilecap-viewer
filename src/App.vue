@@ -1,6 +1,5 @@
 <template>
   <div id="app">
-    <h1>MobileCap</h1>
     <HelloWorld/>
   </div>
 </template>
@@ -22,7 +21,10 @@ export default {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
-  color: #2c3e50;
+  color: #dddddd;
   margin-top: 60px;
+}
+body {
+  background-color: #050505;
 }
 </style>
