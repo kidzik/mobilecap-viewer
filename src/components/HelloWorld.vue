@@ -1,5 +1,13 @@
 <template>
   <div id="container">
+    <div>
+      <div>
+        <img v-bind:src="qrcode()" style="width: 400px;" />
+      </div>
+      <div>
+        <button @click="changeState" style="margin-right: 10px;" ref="btnSessionCtrl">Start recording</button>
+      </div>
+    </div>
     <div style="padding: 3px;">
       <div id="mocap" />
     </div>
@@ -12,7 +20,6 @@
       <video autoplay="true" muted id="video3" src="videos/right.mp4" controls="true" crossorigin="anonymous"/>
     </div>
     <div>
-    <button style="margin-right: 10px;" disabled>Record a new trial</button>
     <button onclick="window.open('melissa1.trc')">Download OpenSim tracking file (.trc)</button>
     </div>
   </div>
@@ -22,6 +29,7 @@
 import * as THREE from 'three'
 import * as data from '@/data'
 import * as THREE_OC from '@/orbitControls'
+import axios from 'axios'
 //  console.log(frames)
 
 let openpose_bones = [
@@ -76,10 +84,23 @@ export default {
       renderer: null,
       mesh: null,
       processor: null,
+      session: null,
+      state: "ready",
     }
   },
   methods: {
+    qrcode: function() {
+      if (this.session)
+        return this.session.qrcode
+      return null
+    },
     init: function() {
+
+      axios.get('/sessions/new/')
+        .then(response => (
+          this.session = response.data[0]
+        ))
+
         let container = document.getElementById('mocap');
 
         let ratio = container.clientWidth/container.clientHeight
@@ -136,6 +157,17 @@ export default {
         this.video2.playbackRate = 1
         this.video3.playbackRate = 1
 
+    },
+    changeState: function(){
+    if (this.state == "ready"){
+      this.$refs.btnSessionCtrl.innerText = "Stop recording";
+      this.state = "recording"
+      axios.get('/sessions/' + this.session.id + '/record/')
+    }
+    else if (this.state == "recording"){
+      this.$refs.btnSessionCtrl.innerText = "Start recording";
+      this.state = "ready"
+    }
     },
     timerCallback: function() {
       this.computeFrame();
