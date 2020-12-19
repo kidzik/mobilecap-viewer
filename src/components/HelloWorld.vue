@@ -1,28 +1,36 @@
 <template>
-  <div id="container">
-    <div>
-      <div>
-        <img v-bind:src="qrcode()" style="width: 400px;" />
-      </div>
-      <div>
-        <button @click="changeState" style="margin-right: 10px;" ref="btnSessionCtrl">Start recording</button>
-      </div>
-    </div>
-    <div style="padding: 3px;">
+  <v-container fluid>
+    <v-row class="text-center">
+    <v-col
+      cols="2"
+    >
+      <v-row align="center">
+        <v-col>
+          <img v-bind:src="qrcode()" style="width: 100%;" />
+          <v-btn block @click="changeState" style="margin-top: 1em;" ref="btnSessionCtrl">{{ statusButtonLabel() }}</v-btn>
+          <v-btn block style="margin-top: 1em" onclick="window.open('melissa1.trc')">OpenSim (.trc)</v-btn>
+        </v-col>
+      </v-row>
+    </v-col>
+    <v-col
+      cols="8"
+    >
       <div id="mocap" />
-    </div>
-    <div>
-      Use mouse to control the 3D view.
-    </div>
+      <div>
+        Use mouse to control the 3D view.
+      </div>
+    </v-col>
+    <v-col
+      cols="2"
+    >
     <div id="videos">
       <video autoplay="true" muted id="video1" src="videos/left.mp4" controls="true" crossorigin="anonymous"/>
       <video autoplay="true" muted id="video2" src="videos/rear.mp4" controls="true" crossorigin="anonymous"/>
       <video autoplay="true" muted id="video3" src="videos/right.mp4" controls="true" crossorigin="anonymous"/>
     </div>
-    <div>
-    <button onclick="window.open('melissa1.trc')">Download OpenSim tracking file (.trc)</button>
-    </div>
-  </div>
+    </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script>
@@ -88,11 +96,21 @@ export default {
       state: "ready",
     }
   },
+  beforeDestroy: function () {
+  window.removeEventListener('resize', this.onResize)
+  },
   methods: {
     qrcode: function() {
       if (this.session)
         return this.session.qrcode
       return null
+    },
+    statusButtonLabel: function(){
+      var maps = {
+      "ready": "Start recording",
+      "recording": "Stop recording",
+      }
+      return maps[this.state]
     },
     init: function() {
 
@@ -134,7 +152,8 @@ export default {
 
 
         this.renderer = new THREE.WebGLRenderer({antialias: true});
-        this.renderer.setSize(container.clientWidth, container.clientHeight);
+//        this.renderer.setSize(container.clientWidth, container.clientHeight);
+        this.onResize();
         container.appendChild(this.renderer.domElement);
         this.controls = new THREE_OC.OrbitControls( this.camera, this.renderer.domElement );
 
@@ -158,15 +177,20 @@ export default {
         this.video3.playbackRate = 1
 
     },
+    onResize: function() {
+    let container = document.getElementById('mocap');
+    this.renderer.setSize(container.clientWidth-4, window.innerHeight*0.8);
+    },
     changeState: function(){
     if (this.state == "ready"){
-      this.$refs.btnSessionCtrl.innerText = "Stop recording";
+      this.label = "Stop recording";
       this.state = "recording"
       axios.get('/sessions/' + this.session.id + '/record/')
     }
     else if (this.state == "recording"){
       this.$refs.btnSessionCtrl.innerText = "Start recording";
       this.state = "ready"
+      axios.get('/sessions/' + this.session.id + '/stop/')
     }
     },
     timerCallback: function() {
@@ -225,6 +249,8 @@ export default {
   mounted() {
       this.init();
       this.animate();
+      console.log('here')
+      window.addEventListener('resize', this.onResize)
   }
 }
 </script>
@@ -232,15 +258,15 @@ export default {
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
   #mocap {
-    height: 800px;
-    border: 1px solid #333333;
-    width: 620px;
+    border: 2px solid #222222;
+    width: 100%;
+    height: 100%;
     margin: 0 auto;
   }
   #videos {
   }
   #videos video {
-    width: 200px;
+    width: 100%;
   }
   #cameras canvas {
     padding: 5px;
