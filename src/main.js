@@ -7,7 +7,7 @@ import '@mdi/font/css/materialdesignicons.css'
 
 Vue.config.productionTip = false
 
-axios.defaults.baseURL = "https://mobilecap.kidzinski.com/"
+axios.defaults.baseURL = "https://api.mobilecap.kidzinski.com/"
 
 Vue.use(axios)
 
