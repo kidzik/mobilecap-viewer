@@ -7,6 +7,7 @@
       <v-row align="center">
         <v-col>
           <img v-bind:src="qrcode()" style="width: 100%;" />
+          <div>{{ state }}</div>
           <v-btn block @click="changeState" style="margin-top: 1em;" ref="btnSessionCtrl">{{ statusButtonLabel() }}</v-btn>
           <v-btn block style="margin-top: 1em" onclick="window.open('melissa1.trc')">OpenSim (.trc)</v-btn>
         </v-col>
@@ -24,9 +25,7 @@
       cols="2"
     >
     <div id="videos">
-      <video autoplay="true" muted id="video1" src="https://mobilecap.s3-us-west-2.amazonaws.com/videos/left1.mp4" controls="true" crossorigin="anonymous"/>
-      <video autoplay="true" muted id="video2" src="https://mobilecap.s3-us-west-2.amazonaws.com/videos/rear1.mp4" controls="true" crossorigin="anonymous"/>
-      <video autoplay="true" muted id="video3" src="https://mobilecap.s3-us-west-2.amazonaws.com/videos/right1.mp4" controls="true" crossorigin="anonymous"/>
+      <video v-for="vid in videos" v-bind:key="vid.id" autoplay="true" muted :id="vid.id" :src="vid.video_thumb" controls="true" crossorigin="anonymous"/>
     </div>
     </v-col>
     </v-row>
@@ -94,6 +93,15 @@ export default {
       processor: null,
       session: null,
       state: "ready",
+      heartbeat: null,
+      status_url: "/",
+      bose_bones: null,
+      videos: [
+        {
+          id: "main",
+          video_thumb: "https://mobilecap.s3-us-west-2.amazonaws.com/videos/left1.mp4"
+        },
+      ]
     }
   },
   beforeDestroy: function () {
@@ -109,88 +117,112 @@ export default {
       var maps = {
       "ready": "Start recording",
       "recording": "Stop recording",
+      "processing": "Cancel trial",
       }
       return maps[this.state]
     },
-    init: function() {
+    loadResults: function(trial_url){
+      axios.get(trial_url)
+        .then(response => {
+          // load JSON
 
+          // set TRC link
+
+          // add videos
+
+          this.showVideos();
+
+          this.show3d()
+          this.animate();
+
+          console.log(response)
+          this.state = "ready"
+        })
+    },
+    init: function() {
       axios.get('/sessions/new/')
         .then(response => (
           this.session = response.data[0]
         ))
+    },
+    show3d: function(){
+      let container = document.getElementById('mocap');
 
-        let container = document.getElementById('mocap');
+      let ratio = container.clientWidth/container.clientHeight
+      this.camera = new THREE.PerspectiveCamera(50, ratio, 0.1, 100);
+      this.camera.position.z = -10;
+      this.camera.position.y = -10;
 
-        let ratio = container.clientWidth/container.clientHeight
-        this.camera = new THREE.PerspectiveCamera(50, ratio, 0.1, 100);
-        this.camera.position.z = -10;
-        this.camera.position.y = -10;
+      this.scene = new THREE.Scene();
 
-        this.scene = new THREE.Scene();
+      let material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
 
-        let material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+      this.pose_spheres = []
+      this.pose_bones = []
+      this.frame = 0
 
-        this.pose_spheres = []
-        this.pose_bones = []
-        this.frame = 0
+      lengths.forEach((item) => {
+        let cone_geometry = new THREE.ConeGeometry( 0.05, item*2.5, 32 );
+        let cone = new THREE.Mesh( cone_geometry, material )
+        this.pose_bones.push(cone);
+        this.scene.add( cone );
+      })
 
-/*        for (let i = 0; i < 1; i++) {
-          let geometry = new THREE.SphereGeometry( 0.2, 32, 32 );
-          let sphere = new THREE.Mesh( geometry, material )
-          this.pose_spheres.push(sphere);
-          this.scene.add( sphere );
-        }*/
+      this.renderer = new THREE.WebGLRenderer({antialias: true});
+      this.onResize();
+      container.appendChild(this.renderer.domElement);
+      this.controls = new THREE_OC.OrbitControls( this.camera, this.renderer.domElement );
+    },
+    showVideos: function() {
+      this.video1 = document.getElementById("video1");
+      this.video2 = document.getElementById("video2");
+      this.video3 = document.getElementById("video3");
 
+      let self = this;
+      this.video1.addEventListener('ended', function () {
+        console.count('loop restart');
+        self.video1.currentTime = 0;
+        self.video2.currentTime = 0;
+        self.video3.currentTime = 0;
+        self.video1.play();
+        self.video2.play();
+        self.video3.play();
+      })
 
-        lengths.forEach((item) => {
-          let cone_geometry = new THREE.ConeGeometry( 0.05, item*2.5, 32 );
-          let cone = new THREE.Mesh( cone_geometry, material )
-          this.pose_bones.push(cone);
-          this.scene.add( cone );
-        })
-
-
-
-        this.renderer = new THREE.WebGLRenderer({antialias: true});
-//        this.renderer.setSize(container.clientWidth, container.clientHeight);
-        this.onResize();
-        container.appendChild(this.renderer.domElement);
-        this.controls = new THREE_OC.OrbitControls( this.camera, this.renderer.domElement );
-
-        this.video1 = document.getElementById("video1");
-        this.video2 = document.getElementById("video2");
-        this.video3 = document.getElementById("video3");
-
-        let self = this;
-        this.video1.addEventListener('ended', function () {
-          console.count('loop restart');
-          self.video1.currentTime = 0;
-          self.video2.currentTime = 0;
-          self.video3.currentTime = 0;
-          self.video1.play();
-          self.video2.play();
-          self.video3.play();
-        })
-
-        this.video1.playbackRate = 1
-        this.video2.playbackRate = 1
-        this.video3.playbackRate = 1
-
+      this.video1.playbackRate = 1
+      this.video2.playbackRate = 1
+      this.video3.playbackRate = 1
     },
     onResize: function() {
-    let container = document.getElementById('mocap');
-    this.renderer.setSize(container.clientWidth-4, window.innerHeight*0.8);
+      let container = document.getElementById('mocap');
+      this.renderer.setSize(container.clientWidth-4, window.innerHeight*0.8);
+    },
+    checkStatus: function(){
+      axios.get(this.status_url).then(response => {
+        console.log(response.data.status)
+        if (response.data.status=="ready"){
+          this.loadResults(response.data.trial)
+          console.log("DISPLAY RESULTS!")
+        }
+        else if (response.data.status=="processing" || response.data.status=="uploading"){
+          setTimeout(this.checkStatus, 1000);
+        }
+      })
     },
     changeState: function(){
     if (this.state == "ready"){
-      this.label = "Stop recording";
       this.state = "recording"
       axios.get('/sessions/' + this.session.id + '/record/')
     }
     else if (this.state == "recording"){
-      this.$refs.btnSessionCtrl.innerText = "Start recording";
-      this.state = "ready"
+      this.state = "processing"
       axios.get('/sessions/' + this.session.id + '/stop/')
+      this.status_url = '/sessions/' + this.session.id + '/status/'
+      this.checkStatus()
+    }
+    else if (this.state == "processing"){
+      this.state = "ready"
+//      axios.get('/sessions/' + this.session.id + '/stop/')
     }
     },
     timerCallback: function() {
@@ -246,10 +278,11 @@ export default {
         this.renderer.render(this.scene, this.camera);
     }
   },
-  mounted() {
+  mounted: function() {
       this.init();
-      this.animate();
-      console.log('here')
+
+      console.log(this.$route.params.trial_id)
+
       window.addEventListener('resize', this.onResize)
   }
 }
