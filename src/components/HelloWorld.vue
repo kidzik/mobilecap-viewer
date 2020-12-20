@@ -24,9 +24,9 @@
       cols="2"
     >
     <div id="videos">
-      <video autoplay="true" muted id="video1" src="videos/left.mp4" controls="true" crossorigin="anonymous"/>
-      <video autoplay="true" muted id="video2" src="videos/rear.mp4" controls="true" crossorigin="anonymous"/>
-      <video autoplay="true" muted id="video3" src="videos/right.mp4" controls="true" crossorigin="anonymous"/>
+      <video autoplay="true" muted id="video1" src="https://mobilecap.s3-us-west-2.amazonaws.com/videos/left1.mp4" controls="true" crossorigin="anonymous"/>
+      <video autoplay="true" muted id="video2" src="https://mobilecap.s3-us-west-2.amazonaws.com/videos/rear1.mp4" controls="true" crossorigin="anonymous"/>
+      <video autoplay="true" muted id="video3" src="https://mobilecap.s3-us-west-2.amazonaws.com/videos/right1.mp4" controls="true" crossorigin="anonymous"/>
     </div>
     </v-col>
     </v-row>
