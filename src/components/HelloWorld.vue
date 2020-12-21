@@ -7,16 +7,28 @@
       <v-row align="center">
         <v-col>
           <img v-bind:src="qrcode()" style="width: 100%;" />
+          <div v-if="state=='processing' || state=='uploading'" style="padding: 1em">
+            <v-progress-circular
+              indeterminate
+              :size="50"
+              :width="7"
+              color="amber"
+            />
+          </div>
           <div>{{ state }}</div>
           <v-btn block @click="changeState" style="margin-top: 1em;" ref="btnSessionCtrl">{{ statusButtonLabel() }}</v-btn>
           <v-btn block @click="downloadTrc" style="margin-top: 1em">OpenSim (.trc)</v-btn>
+          <div style="margin-top: 1em;">
+            <v-text-field v-model="trial_url" v-if="trial" readonly label="Link to this trial" />
+            <v-text-field v-model="trial_details_url" v-if="trial" readonly label="Link to trial details data"/>
+          </div>
         </v-col>
       </v-row>
     </v-col>
     <v-col
       cols="8"
     >
-      <div id="mocap" />
+    <div id="mocap" />
       <div>
         Use mouse to control the 3D view.
       </div>
@@ -24,8 +36,11 @@
     <v-col
       cols="2"
     >
-    <div id="videos" v-if="trial">
-      <video v-for="vid in trial.videos" v-bind:key="vid.id" autoplay="true" muted :id="vid.id" :src="vid.video_thumb" controls="true" crossorigin="anonymous"/>
+    <div id="videos" v-if="trial && state == 'ready'">
+      <video v-for="vid in trial.videos"
+      v-bind:key="vid.id" autoplay="true"
+      muted :id="vid.id" :src="vid.video_thumb"
+      controls="true" crossorigin="anonymous"/>
     </div>
     </v-col>
     </v-row>
@@ -81,15 +96,25 @@ export default {
       bose_bones: null,
       trial: null,
       frames: [],
-    }
-  },
-  computed: {
-    trial_available: function() {
-      return this.trial != null
+      synced: false,
     }
   },
   beforeDestroy: function () {
     window.removeEventListener('resize', this.onResize)
+  },
+  computed: {
+    trial_url: function(){
+      if (this.trial!=null){
+        return location.protocol+"//"+location.host+"/trial/"+this.trial.id+"/"
+      }
+      return ""
+    },
+    trial_details_url: function(){
+      if (this.trial!=null){
+        return axios.defaults.baseURL+"trials/"+this.trial.id+"/"
+      }
+      return ""
+    }
   },
   methods: {
     qrcode: function() {
@@ -109,6 +134,7 @@ export default {
       axios.get(trial_url)
         .then(response => {
           console.log(response)
+          this.synced = false
           this.trial = response.data
           // load JSON
           let json_file = response.data.results[0].json
@@ -119,8 +145,6 @@ export default {
           console.log(response)
           this.frames = response.data
           // add videos
-
-          this.showVideos();
 
           this.show3d()
           this.animate();
@@ -182,10 +206,10 @@ export default {
         this.scene.add( cone );
       })
     },
-    showVideos: function() {
-      let self = this;
-      if (this.trial == null)
+    syncVideos: function() {
+      if (this.synced || this.trial == null || this.trial.videos.length == 0)
         return
+      let self = this;
       let vid0 = document.getElementById(this.trial.videos[0].id)
       console.log(this.trial.videos[0])
       vid0.addEventListener('ended', function () {
@@ -200,6 +224,7 @@ export default {
         let vid_element = document.getElementById(video.id);
         vid_element.playbackRate = 1
       })
+      this.synced = true
     },
     onResize: function() {
       let container = document.getElementById('mocap');
@@ -219,7 +244,7 @@ export default {
     },
     downloadTrc: function(){
       if (this.trial != null && this.trial.results.length > 0){
-        window.location.href = this.trial.results[0].trc
+        window.open(this.trial.results[0].trc,"_blank")
       }
     },
     changeState: function(){
@@ -261,6 +286,9 @@ export default {
       }
         requestAnimationFrame(this.animate);
         let vid0 = document.getElementById(this.trial.videos[0].id);
+        if (vid0 == null || vid0 == undefined){
+          return
+        }
 
         let cframe = (Math.floor(vid0.currentTime*120)) % this.frames.length
 
@@ -291,6 +319,7 @@ export default {
 
         }
         this.renderer.render(this.scene, this.camera);
+        this.syncVideos();
     }
   },
   mounted: function() {
