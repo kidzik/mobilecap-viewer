@@ -9,7 +9,7 @@
           <img v-bind:src="qrcode()" style="width: 100%;" />
           <div>{{ state }}</div>
           <v-btn block @click="changeState" style="margin-top: 1em;" ref="btnSessionCtrl">{{ statusButtonLabel() }}</v-btn>
-          <v-btn block style="margin-top: 1em" onclick="window.open('melissa1.trc')">OpenSim (.trc)</v-btn>
+          <v-btn block @click="downloadTrc" style="margin-top: 1em">OpenSim (.trc)</v-btn>
         </v-col>
       </v-row>
     </v-col>
@@ -24,8 +24,8 @@
     <v-col
       cols="2"
     >
-    <div id="videos">
-      <video v-for="vid in videos" v-bind:key="vid.id" autoplay="true" muted :id="vid.id" :src="vid.video_thumb" controls="true" crossorigin="anonymous"/>
+    <div id="videos" v-if="trial">
+      <video v-for="vid in trial.videos" v-bind:key="vid.id" autoplay="true" muted :id="vid.id" :src="vid.video_thumb" controls="true" crossorigin="anonymous"/>
     </div>
     </v-col>
     </v-row>
@@ -34,7 +34,6 @@
 
 <script>
 import * as THREE from 'three'
-import * as data from '@/data'
 import * as THREE_OC from '@/orbitControls'
 import axios from 'axios'
 //  console.log(frames)
@@ -66,22 +65,6 @@ let openpose_bones = [
 //    [20,19],
 ]
 
-let lengths = openpose_bones.map((item) => {
-  let from = item[0]
-  let to = item[1]
-  let cframe = 100
-
-  var vfrom = new THREE.Vector3(data.frames[cframe][from*3],
-    data.frames[cframe][from*3 + 1],
-    data.frames[cframe][from*3 + 2]);
-
-  var vto = new THREE.Vector3(data.frames[cframe][to*3],
-    data.frames[cframe][to*3 + 1],
-    data.frames[cframe][to*3 + 2]);
-  return vto.distanceTo(vfrom)
-})
-console.log(lengths)
-
 export default {
   name: 'HelloWorld',
   data() {
@@ -96,16 +79,17 @@ export default {
       heartbeat: null,
       status_url: "/",
       bose_bones: null,
-      videos: [
-        {
-          id: "main",
-          video_thumb: "https://mobilecap.s3-us-west-2.amazonaws.com/videos/left1.mp4"
-        },
-      ]
+      trial: null,
+      frames: [],
+    }
+  },
+  computed: {
+    trial_available: function() {
+      return this.trial != null
     }
   },
   beforeDestroy: function () {
-  window.removeEventListener('resize', this.onResize)
+    window.removeEventListener('resize', this.onResize)
   },
   methods: {
     qrcode: function() {
@@ -124,10 +108,16 @@ export default {
     loadResults: function(trial_url){
       axios.get(trial_url)
         .then(response => {
+          console.log(response)
+          this.trial = response.data
           // load JSON
-
-          // set TRC link
-
+          let json_file = response.data.results[0].json
+          console.log(json_file)
+          return axios.get(json_file)
+        })
+        .then(response => {
+          console.log(response)
+          this.frames = response.data
           // add videos
 
           this.showVideos();
@@ -135,7 +125,6 @@ export default {
           this.show3d()
           this.animate();
 
-          console.log(response)
           this.state = "ready"
         })
     },
@@ -145,53 +134,72 @@ export default {
           this.session = response.data[0]
         ))
     },
-    show3d: function(){
+    setup3d: function(){
       let container = document.getElementById('mocap');
-
       let ratio = container.clientWidth/container.clientHeight
       this.camera = new THREE.PerspectiveCamera(50, ratio, 0.1, 100);
       this.camera.position.z = -10;
       this.camera.position.y = -10;
 
       this.scene = new THREE.Scene();
+      this.renderer = new THREE.WebGLRenderer({antialias: true});
+      this.onResize();
+      container.appendChild(this.renderer.domElement);
+      this.controls = new THREE_OC.OrbitControls( this.camera, this.renderer.domElement );
+    },
+    show3d: function(){
+      let container = document.getElementById('mocap');
 
-      let material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+      let lengths = openpose_bones.map((item) => {
+        let from = item[0]
+        let to = item[1]
+        let cframe = 100
+
+        var vfrom = new THREE.Vector3(this.frames[cframe][from*3],
+          this.frames[cframe][from*3 + 1],
+          this.frames[cframe][from*3 + 2]);
+
+        var vto = new THREE.Vector3(this.frames[cframe][to*3],
+          this.frames[cframe][to*3 + 1],
+          this.frames[cframe][to*3 + 2]);
+        return vto.distanceTo(vfrom)
+      })
+      console.log(lengths)
 
       this.pose_spheres = []
       this.pose_bones = []
       this.frame = 0
 
+      while(this.scene.children.length > 0){
+        this.scene.remove(this.scene.children[0]);
+      }
+
+      let material = new THREE.MeshBasicMaterial( {color: 0xffff00} );
       lengths.forEach((item) => {
         let cone_geometry = new THREE.ConeGeometry( 0.05, item*2.5, 32 );
         let cone = new THREE.Mesh( cone_geometry, material )
         this.pose_bones.push(cone);
         this.scene.add( cone );
       })
-
-      this.renderer = new THREE.WebGLRenderer({antialias: true});
-      this.onResize();
-      container.appendChild(this.renderer.domElement);
-      this.controls = new THREE_OC.OrbitControls( this.camera, this.renderer.domElement );
     },
     showVideos: function() {
-      this.video1 = document.getElementById("video1");
-      this.video2 = document.getElementById("video2");
-      this.video3 = document.getElementById("video3");
-
       let self = this;
-      this.video1.addEventListener('ended', function () {
+      if (this.trial == null)
+        return
+      let vid0 = document.getElementById(this.trial.videos[0].id)
+      console.log(this.trial.videos[0])
+      vid0.addEventListener('ended', function () {
         console.count('loop restart');
-        self.video1.currentTime = 0;
-        self.video2.currentTime = 0;
-        self.video3.currentTime = 0;
-        self.video1.play();
-        self.video2.play();
-        self.video3.play();
+        self.trial.videos.forEach((video) => {
+          let vid_element = document.getElementById(video.id);
+          vid_element.currentTime = 0;
+          vid_element.play();
+        })
+      });
+      this.trial.videos.forEach((video) => {
+        let vid_element = document.getElementById(video.id);
+        vid_element.playbackRate = 1
       })
-
-      this.video1.playbackRate = 1
-      this.video2.playbackRate = 1
-      this.video3.playbackRate = 1
     },
     onResize: function() {
       let container = document.getElementById('mocap');
@@ -208,6 +216,11 @@ export default {
           setTimeout(this.checkStatus, 1000);
         }
       })
+    },
+    downloadTrc: function(){
+      if (this.trial != null && this.trial.results.length > 0){
+        window.location.href = this.trial.results[0].trc
+      }
     },
     changeState: function(){
     if (this.state == "ready"){
@@ -237,30 +250,32 @@ export default {
     },
 
     goToTime: function(time) {
-      if (this.video1 !== undefined && this.video2 !== undefined && this.video3 !== undefined){
-        this.video2.currentTime = time;
-        this.video3.currentTime = time;
-        this.video1.currentTime = time;
-      }
-      let x = time
-      time = x
+      this.trial.videos.forEach((video) => {
+        let vid_element = document.getElementById(video.id);
+        vid_element.currentTime = time
+      })
     },
     animate: function() {
+      if (this.trial == null){
+        return
+      }
         requestAnimationFrame(this.animate);
-        let cframe = (Math.floor(self.video1.currentTime*120)) % data.frames.length
+        let vid0 = document.getElementById(this.trial.videos[0].id);
+
+        let cframe = (Math.floor(vid0.currentTime*120)) % this.frames.length
 
 
         for (let i = 0; i < this.pose_bones.length; i++) {
           let from = openpose_bones[i][0]
           let to = openpose_bones[i][1]
 
-          var vfrom = new THREE.Vector3(data.frames[cframe][from*3],
-            data.frames[cframe][from*3 + 1],
-            data.frames[cframe][from*3 + 2]);
+          var vfrom = new THREE.Vector3(this.frames[cframe][from*3],
+            this.frames[cframe][from*3 + 1],
+            this.frames[cframe][from*3 + 2]);
 
-          var vto = new THREE.Vector3(data.frames[cframe][to*3],
-            data.frames[cframe][to*3 + 1],
-            data.frames[cframe][to*3 + 2]);
+          var vto = new THREE.Vector3(this.frames[cframe][to*3],
+            this.frames[cframe][to*3 + 1],
+            this.frames[cframe][to*3 + 2]);
 
           var axis = new THREE.Vector3(0, 1, 0);
           this.pose_bones[i].quaternion.setFromUnitVectors(
@@ -280,8 +295,13 @@ export default {
   },
   mounted: function() {
       this.init();
+      this.setup3d()
 
-      console.log(this.$route.params.trial_id)
+      if (this.$route.params.trial_id != null){
+        let trial_id = this.$route.params.trial_id
+        this.loadResults("/trials/" + trial_id + "/")
+        console.log(trial_id)
+      }
 
       window.addEventListener('resize', this.onResize)
   }
