@@ -240,8 +240,12 @@ export default {
           console.log("DISPLAY RESULTS!")
         }
         if (response.data.status=="processing"){
-          this.loadResults(response.data.trial)
-          console.log("DISPLAY RESULTS (while processing)!")
+          axios.get(response.data.trial)
+            .then(response => {
+              console.log(response)
+              this.trial = response.data
+            })
+          console.log("DISPLAY TRIAL LINKS!")
         }
         if (response.data.status=="processing" || response.data.status=="uploading"){
           setTimeout(this.checkStatus, 1000);
@@ -262,7 +266,7 @@ export default {
       this.state = "processing"
       axios.get('/sessions/' + this.session.id + '/stop/')
       this.status_url = '/sessions/' + this.session.id + '/status/'
-      this.checkStatus()
+      setTimeout(this.checkStatus, 1000);
     }
     else if (this.state == "processing"){
       this.state = "ready"
