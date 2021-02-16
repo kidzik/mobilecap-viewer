@@ -15,7 +15,7 @@
               color="amber"
             />
           </div>
-          <div>{{ state }}</div>
+          <div>client {{ state }} | server {{ server_state }}</div>
           <v-btn block @click="changeState" style="margin-top: 1em;" ref="btnSessionCtrl">{{ statusButtonLabel() }}</v-btn>
           <v-btn block @click="downloadTrc" style="margin-top: 1em">OpenSim (.trc)</v-btn>
           <div style="margin-top: 1em;">
@@ -91,6 +91,7 @@ export default {
       processor: null,
       session: null,
       state: "ready",
+      server_state: "ready",
       heartbeat: null,
       status_url: "/",
       bose_bones: null,
@@ -233,11 +234,16 @@ export default {
     checkStatus: function(){
       axios.get(this.status_url).then(response => {
         console.log(response.data.status)
+        this.server_state = response.data.status
         if (response.data.status=="ready"){
           this.loadResults(response.data.trial)
           console.log("DISPLAY RESULTS!")
         }
-        else if (response.data.status=="processing" || response.data.status=="uploading"){
+        if (response.data.status=="processing"){
+          this.loadResults(response.data.trial)
+          console.log("DISPLAY RESULTS (while processing)!")
+        }
+        if (response.data.status=="processing" || response.data.status=="uploading"){
           setTimeout(this.checkStatus, 1000);
         }
       })
