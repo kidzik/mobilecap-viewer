@@ -39,7 +39,7 @@
     <div id="videos" v-if="trial && state == 'ready'">
       <video v-for="vid in trial.videos"
       v-bind:key="vid.id" autoplay="true"
-      muted :id="vid.id" :src="vid.video_thumb"
+      muted :id="vid.id" :src="vid.video"
       controls="true" crossorigin="anonymous"/>
     </div>
     </v-col>
