@@ -16,6 +16,11 @@
             />
           </div>
           <div>client {{ state }} | server {{ server_state }}</div>
+          <div>Session {{ session_id }}</div>
+          <div>
+            <label for="trial_name">Trial name</label>
+            <input v-model="trial_name" id="trial_name"/>
+          </div>
           <v-btn block @click="changeState" style="margin-top: 1em;" ref="btnSessionCtrl">{{ statusButtonLabel() }}</v-btn>
           <v-btn block @click="downloadTrc" style="margin-top: 1em">OpenSim (.trc)</v-btn>
           <div style="margin-top: 1em;">
@@ -98,6 +103,7 @@ export default {
       trial: null,
       frames: [],
       synced: false,
+      trial_name: null,
     }
   },
   beforeDestroy: function () {
@@ -109,6 +115,9 @@ export default {
         return location.protocol+"//"+location.host+"/trial/"+this.trial.id+"/"
       }
       return ""
+    },
+    session_id: function(){
+      return this.session.id
     },
     trial_details_url: function(){
       if (this.trial!=null){
@@ -260,11 +269,11 @@ export default {
     changeState: function(){
     if (this.state == "ready"){
       this.state = "recording"
-      axios.get('/sessions/' + this.session.id + '/record/')
+      axios.get('/sessions/' + this.session.id + '/record/?name='+this.trial_name)
     }
     else if (this.state == "recording"){
       this.state = "processing"
-      axios.get('/sessions/' + this.session.id + '/stop/')
+      axios.get('/sessions/' + this.session.id + '/stop/?name='+this.trial_name)
       this.status_url = '/sessions/' + this.session.id + '/status/'
       setTimeout(this.checkStatus, 1000);
     }
@@ -367,5 +376,10 @@ export default {
   #videos video {
     padding: 5px;
     padding-top: 10px;
+  }
+  input {
+      border: 1px #ffffff solid;
+      color: #ffffff;
+      margin: 0.1em 0.5em;
   }
 </style>
