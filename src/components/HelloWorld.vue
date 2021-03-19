@@ -44,7 +44,7 @@
     <div id="videos" v-if="trial && state == 'ready'">
       <video v-for="vid in trial.videos"
       v-bind:key="vid.id" autoplay="true"
-      muted :id="vid.id" :src="vid.video"
+      muted :id="vid.id" :src="vid.video_thumb"
       controls="true" crossorigin="anonymous"/>
     </div>
     </v-col>
@@ -57,7 +57,34 @@ import * as THREE from 'three'
 import * as THREE_OC from '@/orbitControls'
 import axios from 'axios'
 //  console.log(frames)
-
+/*
+0Nose
+1Neck
+2RShoulder
+3RElbow
+4RWrist
+5LShoulder
+6LElbow
+7LWrist
+8midHip
+9RHip
+10RKnee
+11RAnkle
+12LHip
+13LKnee
+14LAnkle
+15REye
+16LEye
+17REar
+18LEar
+19LBigToe
+20LSmallToe
+21LHeel
+22RBigToe
+23RSmallToe
+24RHeel
+25C7_study			r_shoulder_study			L_shoulder_study			r.ASIS_study			L.ASIS_study			r.PSIS_study			L.PSIS_study			r_knee_study			L_knee_study			r_mknee_study			L_mknee_study			r_ankle_study			L_ankle_study			r_mankle_study			L_mankle_study			r_calc_study			L_calc_study			r_toe_study			L_toe_study			r_5meta_study			L_5meta_study
+*/
 let openpose_bones = [
 //    [0,15],
 //    [0,16],
@@ -117,7 +144,9 @@ export default {
       return ""
     },
     session_id: function(){
-      return this.session.id
+      if (this.ssesion)
+        return this.session.id
+      return ""
     },
     trial_details_url: function(){
       if (this.trial!=null){
@@ -189,13 +218,13 @@ export default {
         let to = item[1]
         let cframe = 100
 
-        var vfrom = new THREE.Vector3(this.frames[cframe][from*3],
-          this.frames[cframe][from*3 + 1],
-          this.frames[cframe][from*3 + 2]);
+        var vfrom = new THREE.Vector3(this.frames[cframe][2+from*3],
+          this.frames[cframe][2 + from*3 + 1],
+          this.frames[cframe][2 + from*3 + 2]);
 
-        var vto = new THREE.Vector3(this.frames[cframe][to*3],
-          this.frames[cframe][to*3 + 1],
-          this.frames[cframe][to*3 + 2]);
+        var vto = new THREE.Vector3(this.frames[cframe][2+to*3],
+          this.frames[cframe][2 + to*3 + 1],
+          this.frames[cframe][2 + to*3 + 2]);
         return vto.distanceTo(vfrom)
       })
       console.log(lengths)
@@ -309,20 +338,20 @@ export default {
           return
         }
 
-        let cframe = (Math.floor(vid0.currentTime*120)) % this.frames.length
+        let cframe = (Math.floor(vid0.currentTime*30)) % this.frames.length
 
 
         for (let i = 0; i < this.pose_bones.length; i++) {
           let from = openpose_bones[i][0]
           let to = openpose_bones[i][1]
 
-          var vfrom = new THREE.Vector3(this.frames[cframe][from*3],
-            this.frames[cframe][from*3 + 1],
-            this.frames[cframe][from*3 + 2]);
+          var vfrom = new THREE.Vector3(this.frames[cframe][2 + from*3],
+            this.frames[cframe][2 + from*3 + 1],
+            this.frames[cframe][2 + from*3 + 2]);
 
-          var vto = new THREE.Vector3(this.frames[cframe][to*3],
-            this.frames[cframe][to*3 + 1],
-            this.frames[cframe][to*3 + 2]);
+          var vto = new THREE.Vector3(this.frames[cframe][2 + to*3],
+            this.frames[cframe][2 + to*3 + 1],
+            this.frames[cframe][2 + to*3 + 2]);
 
           var axis = new THREE.Vector3(0, 1, 0);
           this.pose_bones[i].quaternion.setFromUnitVectors(
