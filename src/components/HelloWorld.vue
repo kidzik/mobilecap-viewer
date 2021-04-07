@@ -17,7 +17,23 @@
           </div>
           <div>client {{ state }} | server {{ server_state }}</div>
           <div>Session {{ session_id }}</div>
+          <div style="margin-top: 1em;">
+            <label for="subject_id">Subject ID</label>
+            <input v-model="subject_id" id="subject_id"/>
+          </div>
           <div>
+            <label for="subject_mass">Mass (kg)</label>
+            <input v-model="subject_mass" id="subject_mass"/>
+          </div>
+          <div>
+            <label for="subject_height">Height (m)</label>
+            <input v-model="subject_height" id="subject_height"/>
+          </div>
+          <div>
+            <label for="subject_gender">Gender (m/f)</label>
+            <input v-model="subject_gender" id="subject_gender"/>
+          </div>
+          <div style="margin-top: 1em;">
             <label for="trial_name">Trial name</label>
             <input v-model="trial_name" id="trial_name"/>
           </div>
@@ -131,6 +147,10 @@ export default {
       frames: [],
       synced: false,
       trial_name: null,
+      subject_id: null,
+      subject_mass: null,
+      subject_height: null,
+      subject_gender: null,
     }
   },
   beforeDestroy: function () {
@@ -298,11 +318,20 @@ export default {
     changeState: function(){
     if (this.state == "ready"){
       this.state = "recording"
+
       axios.get('/sessions/' + this.session.id + '/record/?name='+this.trial_name)
     }
     else if (this.state == "recording"){
       this.state = "processing"
-      axios.get('/sessions/' + this.session.id + '/stop/?name='+this.trial_name)
+
+      var params_str = [
+            "subject_id="+this.subject_id,
+            "subject_mass="+this.subject_mass,
+            "subject_height="+this.subject_height,
+            "subject_gender="+this.subject_gender,
+      ].join("&")
+      
+      axios.get('/sessions/' + this.session.id + '/stop/?name='+this.trial_name+'&'+params_str)
       this.status_url = '/sessions/' + this.session.id + '/status/'
       setTimeout(this.checkStatus, 1000);
     }
