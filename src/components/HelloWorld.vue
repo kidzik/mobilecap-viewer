@@ -34,6 +34,22 @@
             <input v-model="subject_gender" id="subject_gender"/>
           </div>
           <div style="margin-top: 1em;">
+            <label for="cb_square">Square size</label>
+            <input v-model="cb_square" id="cb_square"/>
+          </div>
+          <div>
+            <label for="cb_rows"># of rows</label>
+            <input v-model="cb_rows" id="cb_rows"/>
+          </div>
+          <div>
+            <label for="cb_cols"># of cols</label>
+            <input v-model="cb_cols" id="cb_cols"/>
+          </div>
+          <div>
+            <label for="cb_placement">Placement</label>
+            <input v-model="cb_placement" id="cb_placement"/>
+          </div>
+          <div style="margin-top: 1em;">
             <label for="trial_name">Trial name</label>
             <input v-model="trial_name" id="trial_name"/>
           </div>
@@ -439,5 +455,6 @@ export default {
       border: 1px #ffffff solid;
       color: #ffffff;
       margin: 0.1em 0.5em;
+      width: 5em;
   }
 </style>
