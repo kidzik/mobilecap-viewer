@@ -30,11 +30,14 @@
             <input v-model="subject_height" id="subject_height"/>
           </div>
           <div>
-            <label for="subject_gender">Gender (m/f)</label>
-            <input v-model="subject_gender" id="subject_gender"/>
+            <label for="subject_gender">Gender </label>
+            <select v-model="subject_gender" id="subject_gender">
+              <option value="m">male</option>
+              <option value="f">female</option>
+            </select>  
           </div>
           <div style="margin-top: 1em;">
-            <label for="cb_square">Square size</label>
+            <label for="cb_square">Square size (mm)</label>
             <input v-model="cb_square" id="cb_square"/>
           </div>
           <div>
@@ -47,7 +50,10 @@
           </div>
           <div>
             <label for="cb_placement">Placement</label>
-            <input v-model="cb_placement" id="cb_placement"/>
+            <select v-model="cb_placement" id="cb_placement">
+              <option value="backWall">Back wall</option>
+              <option value="ground">Ground</option>
+            </select>
           </div>
           <div style="margin-top: 1em;">
             <label for="trial_name">Trial name</label>
@@ -167,6 +173,10 @@ export default {
       subject_mass: null,
       subject_height: null,
       subject_gender: null,
+      cb_square: 60,
+      cb_cols: 11,
+      cb_rows: 8,
+      cb_placement: "backWall",
     }
   },
   beforeDestroy: function () {
@@ -345,6 +355,10 @@ export default {
             "subject_mass="+this.subject_mass,
             "subject_height="+this.subject_height,
             "subject_gender="+this.subject_gender,
+            "cb_square="+this.cb_square,
+            "cb_rows="+this.cb_rows,
+            "cb_cols="+this.cb_cols,
+            "cb_placement="+this.cb_placement,
       ].join("&")
       
       axios.get('/sessions/' + this.session.id + '/stop/?name='+this.trial_name+'&'+params_str)
@@ -451,10 +465,14 @@ export default {
     padding: 5px;
     padding-top: 10px;
   }
-  input {
+  input, option, select {
       border: 1px #ffffff solid;
       color: #ffffff;
       margin: 0.1em 0.5em;
       width: 5em;
   }
+  option {
+      background-color: #000000;
+  }
+  
 </style>
